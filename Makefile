@@ -5,7 +5,7 @@ endif
 
 #compiler setup
 CXX = g++
-CXXFLAGS = -std=c++14 -O3 -pthread $(MACRO)
+CXXFLAGS = -std=c++14 -O3 -g -pthread $(MACRO)
 
 COMMON= core/utils.h core/cxxopts.h core/get_time.h core/graph.h core/quick_sort.h
 SERIAL= pi_calculation triangle_counting page_rank

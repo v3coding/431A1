@@ -99,7 +99,7 @@ void piCalculation(uint n) {
   threadHolder.T = numberOfThreads;
   threadHolder.retval = 0;
 
-
+//
   serial_timer.start();
   // ------------------------------------------------------------------
   for(int i = 0; i < numberOfThreads; i++){

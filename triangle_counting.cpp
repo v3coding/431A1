@@ -6,34 +6,6 @@
 #include <stdlib.h>
 #include <thread>
 
-static int numberOfThreads;
-
-typedef struct threadStats{
-    pthread_t threadID;
-    double runtime;
-    int threadTriangles;
-    double threadRuntime;
-    uintV *array1;
-    uintE len1;
-    uintV *array2;
-    uintE len2;
-    uintV u;
-    uintV v;
-    uintV n;
-} threadStats;
-
-typedef struct threadObject{
-    pthread_mutex_t* writeMutex;
-    pthread_t* threads;
-    int totalTriangles;
-    int uniqueTriangles;
-    double totalRuntime;
-    threadStats* threadStatistics;
-    int totalThreads;
-    int threadsRunning;
-    Graph* g;
-}   threadObject;
-
 long countTriangles(uintV *array1, uintE len1, uintV *array2, uintE len2,
                      uintV u, uintV v) {
 
@@ -59,41 +31,6 @@ long countTriangles(uintV *array1, uintE len1, uintV *array2, uintE len2,
   return count;
 }
 
-void* countTrianglesP(void *_arg) {
-  timer t1;
-  t1.start();
-  threadObject* threadData = (threadObject*) _arg;
-  int triangle_count;
-  int index;
-
-  for(int i = 0; i < numberOfThreads; i++){
-    if(pthread_self() == threadData->threadStatistics[i].threadID){
-      index = i;
-    }
-  }
-  for (uintV u = threadData->threadStatistics[index].u; u < threadData->threadStatistics[index].n; u++) {
-    // For each outNeighbor v, find the intersection of inNeighbor(u) and
-    // outNeighbor(v)
-    Graph g = *threadData->g;
-
-    uintE out_degree = g.vertices_[u].getOutDegree();
-    for (uintE i = 0; i < out_degree; i++) {
-      uintV v = g.vertices_[u].getOutNeighbor(i);
-      triangle_count += countTriangles(g.vertices_[u].getInNeighbors(),
-                                       g.vertices_[u].getInDegree(),
-                                       g.vertices_[v].getOutNeighbors(),
-                                       g.vertices_[v].getOutDegree(), u, v);
-    }
-    pthread_mutex_lock(threadData->writeMutex);
-    threadData->totalTriangles += triangle_count;
-    pthread_mutex_unlock(threadData->writeMutex);
-
-    threadData->threadStatistics[index].runtime = t1.stop();
-    threadData->threadStatistics[index].threadTriangles = triangle_count;
-  }
-  return 0;
-}
-
 void triangleCountSerial(Graph &g) {
   uintV n = g.n_;
   long triangle_count = 0;
@@ -103,23 +40,8 @@ void triangleCountSerial(Graph &g) {
   // The outNghs and inNghs for a given vertex are already sorted
 
   // Create threads and distribute the work across T threads
-  pthread_t threads[numberOfThreads];
-  threadObject threadHolder;
-  threadStats* stats = new threadStats[numberOfThreads];
-  threadHolder.threadStatistics = stats;
-  threadHolder.writeMutex = new pthread_mutex_t;
-  threadHolder.threadsRunning = 0;
-  threadHolder.totalThreads = numberOfThreads;
-  threadHolder.g = &g;
-  pthread_mutex_init(threadHolder.writeMutex,NULL);
-
-  for(int i = 0; i < numberOfThreads; i++){
-    pthread_create(&threads[i],NULL,countTrianglesP,&threadHolder);
-    threadHolder.threadStatistics[i].threadID = threads[i];
-  }
-
   // -------------------------------------------------------------------
-  //t1.start();
+  t1.start();
   // Process each edge <u,v>
   for (uintV u = 0; u < n; u++) {
     // For each outNeighbor v, find the intersection of inNeighbor(u) and
@@ -127,14 +49,13 @@ void triangleCountSerial(Graph &g) {
     uintE out_degree = g.vertices_[u].getOutDegree();
     for (uintE i = 0; i < out_degree; i++) {
       uintV v = g.vertices_[u].getOutNeighbor(i);
-      //long countTriangles(uintV *array1, uintE len1, uintV *array2, uintE len2, uintV u, uintV v) {
       triangle_count += countTriangles(g.vertices_[u].getInNeighbors(),
                                        g.vertices_[u].getInDegree(),
                                        g.vertices_[v].getOutNeighbors(),
                                        g.vertices_[v].getOutDegree(), u, v);
     }
   }
-  //time_taken = t1.stop();
+  time_taken = t1.stop();
   // -------------------------------------------------------------------
   // Here, you can just print the number of non-unique triangles counted by each
   // thread std::cout << "thread_id, triangle_count, time_taken\n"; Print the
@@ -167,7 +88,6 @@ int main(int argc, char *argv[]) {
   std::string input_file_path = cl_options["inputFile"].as<std::string>();
   std::cout << std::fixed;
   std::cout << "Number of workers : " << n_workers << "\n";
-  numberOfThreads = n_workers;
 
   Graph g;
   std::cout << "Reading graph\n";
