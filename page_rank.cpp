@@ -35,6 +35,7 @@ void pageRankSerial(Graph &g, int max_iters) {
   double time_taken = 0.0;
   // Create threads and distribute the work across T threads
   // -------------------------------------------------------------------
+  
   t1.start();
   for (int iter = 0; iter < max_iters; iter++) {
     // for each vertex 'u', process all its outNeighbors 'v'
